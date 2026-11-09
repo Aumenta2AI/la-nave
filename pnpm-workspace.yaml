@@ -1,0 +1,5 @@
+allowBuilds:
+  '@anthropic-ai/claude-code': set this to true or false
+  '@firebase/util': false
+  esbuild: true
+  protobufjs: false

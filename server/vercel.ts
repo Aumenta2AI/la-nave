@@ -1,0 +1,13 @@
+import {z} from 'zod';
+const team={teamId:{type:'string',maxLength:120}};
+export const vercelTools=[
+ {name:'vercel_list_projects',description:'Listar proyectos de la cuenta o equipo Vercel.',inputSchema:{type:'object',properties:team,additionalProperties:false}},
+ {name:'vercel_list_deployments',description:'Listar los últimos despliegues de un proyecto.',inputSchema:{type:'object',properties:{...team,projectId:{type:'string',maxLength:120}},additionalProperties:false}},
+ {name:'vercel_get_deployment',description:'Consultar estado y URL de un despliegue.',inputSchema:{type:'object',required:['id'],properties:{...team,id:{type:'string',minLength:1,maxLength:200}},additionalProperties:false}},
+ {name:'vercel_create_deployment',description:'Crear un despliegue desde un repositorio GitHub conectado. Puede publicar el proyecto y consumir recursos. Requiere aprobación.',inputSchema:{type:'object',required:['name','repoId','ref'],properties:{...team,name:{type:'string',minLength:1,maxLength:100},project:{type:'string',maxLength:120},repoId:{type:'string',pattern:'^[0-9]+$'},ref:{type:'string',minLength:1,maxLength:200},production:{type:'boolean'}},additionalProperties:false}}
+];
+export async function vercelRequest(name:string,input:any,key:string){const p=z.object({teamId:z.string().max(120).optional(),projectId:z.string().max(120).optional(),id:z.string().max(200).optional(),name:z.string().max(100).optional(),project:z.string().max(120).optional(),repoId:z.string().regex(/^\d+$/).optional(),ref:z.string().max(200).optional(),production:z.boolean().optional()}).parse(input);let endpoint='',body:any;
+ if(name==='vercel_list_projects')endpoint='/v9/projects';else if(name==='vercel_list_deployments')endpoint='/v6/deployments';else if(name==='vercel_get_deployment'&&p.id)endpoint='/v13/deployments/'+encodeURIComponent(p.id);else if(name==='vercel_create_deployment'&&p.name&&p.repoId&&p.ref){endpoint='/v13/deployments';body={name:p.name,project:p.project,gitSource:{type:'github',repoId:p.repoId,ref:p.ref},...(p.production?{target:'production'}:{})};}else throw Error('Acción Vercel o parámetros no válidos.');
+ const url=new URL(endpoint,'https://api.vercel.com');if(p.teamId)url.searchParams.set('teamId',p.teamId);if(name==='vercel_list_deployments'&&p.projectId)url.searchParams.set('projectId',p.projectId);if(name.includes('list_'))url.searchParams.set('limit','20');
+ const r=await fetch(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(60000)});if(!r.ok){await r.body?.cancel();throw Error('Vercel respondió HTTP '+r.status+'. Revisa token, equipo y permisos.');}return r.json();
+}

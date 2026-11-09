@@ -1,0 +1,18 @@
+import React,{useEffect,useState} from 'react';
+import type { Auth, User } from 'firebase/auth';
+import type { FirebaseApp } from 'firebase/app';
+export function FirebaseConnections(){
+  const [config,setConfig]=useState({apiKey:'',projectId:'',authDomain:'',appId:''}),[user,setUser]=useState<User|null>(null),[app,setApp]=useState<FirebaseApp>(),[auth,setAuth]=useState<Auth>(),[busy,setBusy]=useState(false),[status,setStatus]=useState('Proyecto pendiente de crear y vincular');
+  useEffect(()=>{fetch('/api/firebase/config').then(r=>r.json()).then(c=>{if(c.projectId)setConfig(c);}).catch(()=>{});},[]);
+  async function connect(){setBusy(true);try{
+    const response=await fetch('/api/firebase/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});if(!response.ok)throw Error('Completa la configuración web de tu proyecto Firebase.');
+    const {initializeApp,getApps}=await import('firebase/app'),{getAuth,signInWithPopup,GoogleAuthProvider}=await import('firebase/auth');
+    const instance=getApps().find(a=>a.name===config.projectId)||initializeApp(config,config.projectId);const a=getAuth(instance);setApp(instance);setAuth(a);const result=await signInWithPopup(a,new GoogleAuthProvider());setUser(result.user);setStatus('Sesión iniciada. Ya puedes respaldar las conversaciones.');
+  }catch(e){setStatus((e as Error).message);}finally{setBusy(false);}}
+  async function backup(){if(!app||!user)return;setBusy(true);try{
+    const {getFirestore,doc,writeBatch}=await import('firebase/firestore');const db=getFirestore(app);const response=await fetch('/api/conversations/export');if(!response.ok)throw Error('No se pudieron leer las conversaciones locales');const records=await response.json();
+    for(let i=0;i<records.length;i+=400){const batch=writeBatch(db);for(const m of records.slice(i,i+400))batch.set(doc(db,'users',user.uid,'messages',m.id),m);await batch.commit();}
+    setStatus(`${records.length} mensajes respaldados en ${config.projectId}. Las conversaciones locales se conservan.`);
+  }catch(e){setStatus('No se completó el respaldo: '+(e as Error).message);}finally{setBusy(false);}}
+  return <article className="panel provider-connections"><h2>Firebase · Cuenta y respaldo</h2><p>Vincula tu propio proyecto para iniciar sesión con Google y guardar una copia de tus conversaciones. La Nave continúa funcionando localmente.</p><ol><li><a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer">Crear proyecto Firebase ↗</a> y registrar una aplicación web.</li><li>En Authentication, habilitar Google y autorizar <code>localhost</code>.</li><li>Crear Firestore y publicar las reglas privadas incluidas en <code>firebase/firestore.rules</code>.</li><li>Copiar los cuatro valores de la configuración web aquí.</li></ol><div className="provider-grid">{(['projectId','apiKey','authDomain','appId'] as const).map(k=><label key={k}>{k}<input value={config[k]} disabled={!!user} onChange={e=>setConfig({...config,[k]:e.target.value})}/></label>)}</div><div className="actions"><button disabled={busy||!!user} onClick={()=>void connect()}>Guardar e iniciar sesión con Google</button><button disabled={busy||!user} onClick={()=>void backup()}>Respaldar conversaciones</button>{user&&<button disabled={busy} onClick={async()=>{const {signOut}=await import('firebase/auth');await signOut(auth!);setUser(null);setStatus('Sesión cerrada');}}>Cerrar sesión</button>}</div><p role="status">{user?.email} {status}</p><small>El respaldo es manual. No modifica ni restaura automáticamente los datos locales.</small></article>;
+}

@@ -1,0 +1,25 @@
+import { test, expect } from '@playwright/test';
+test('Conexión Google compartida y comprobaciones honestas de los cuatro servicios', async ({ page, request }) => {
+    const before = await (await request.get('/api/test/effects')).json();
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Configuración', exact: false }).click();
+    await expect(page.getByRole('heading', { name: 'Una cuenta, cuatro servicios' })).toBeVisible();
+    await page.getByLabel('Cuenta de Google para los cuatro servicios').selectOption('test-account');
+    await page.getByRole('button', { name: 'Usar esta cuenta en Google' }).click();
+    await expect(page.getByText('Cuenta guardada para Gmail, Drive, Sheets y Docs.')).toBeVisible();
+    const state = await (await request.get('/api/state')).json();
+    expect(state.settings).toMatchObject({ accountId: 'test-account', driveAccountId: 'test-account', sheetsAccountId: 'test-account', docsAccountId: 'test-account' });
+    await page.getByRole('button', { name: 'Comprobar los cuatro servicios' }).click();
+    await expect(page.getByText('Google Sheets · Pendiente de comprobar')).toBeVisible();
+    await expect(page.getByText('Gmail · Lectura correcta')).toBeVisible();
+    await page.getByLabel('ID de archivo de Google Sheets (opcional)').fill('sheet-id');
+    await page.getByLabel('ID de archivo de Google Docs (opcional)').fill('doc-id');
+    await page.getByRole('button', { name: 'Comprobar los cuatro servicios' }).click();
+    await expect(page.getByText('Google Sheets · Lectura correcta')).toBeVisible();
+    await expect(page.getByText('Google Docs · Lectura correcta')).toBeVisible();
+    expect(await (await request.get('/api/test/effects')).json()).toEqual(before);
+    const invalid = await request.put('/api/settings', { data: { accountId: 'test-account', driveAccountId: 'test-account', docsAccountId: 'someone-else' } });
+    expect(invalid.status()).toBe(400);
+    expect((await request.post('/api/google/check', { data: { docs: 'https://example.com' } })).status()).toBe(400);
+    await page.screenshot({ path: 'test-results/google-connections.png', fullPage: true });
+});

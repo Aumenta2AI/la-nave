@@ -1,0 +1,22 @@
+import {tenantMessages,tenantReply} from './tenantExecution.ts';
+import type {Express} from 'express';
+import {z} from 'zod';
+import {get,put} from './store.ts';
+import {saveProtectedCredentials} from './credentialVault.ts';
+const image=z.string().max(1000).refine(v=>!v||/^https:\/\/[^\s]+$/.test(v)||/^\/assets\/[\w./-]+$/.test(v),'Usa HTTPS o una imagen de /assets/');
+const schema=z.object({brandName:z.string().trim().min(2).max(80),logoUrl:image,primaryColor:z.string().regex(/^#[a-f0-9]{6}$/i),secondaryColor:z.string().regex(/^#[a-f0-9]{6}$/i),welcomeText:z.string().max(500),locale:z.enum(['es','en']),characters:z.array(z.object({id:z.string().regex(/^[a-z0-9-]{1,80}$/),name:z.string().trim().min(1).max(80),role:z.string().max(160),department:z.string().max(80),appearance:z.enum(['administrativo','legal','diseno','soporte','contabilidad','marketing']),color:z.string().regex(/^#[a-f0-9]{6}$/i),provider:z.enum(['','openai','claude','grok','kimi','deepseek','perplexity','gemini']).default('')}).strict()).max(150)}).strict();
+export function workspaceConfig(companyId:string){const c=get('saas-companies',companyId);if(!c)throw Error('Empresa no encontrada');return get('workspace-config',companyId)||{id:companyId,brandName:c.name,logoUrl:c.logoUrl||'',primaryColor:c.color||'#7245a0',secondaryColor:'#290151',welcomeText:'Bienvenido a tu espacio de trabajo',locale:'es',characters:[]};}
+export function saveWorkspace(companyId:string,input:unknown){workspaceConfig(companyId);const p=schema.parse(input);if(new Set(p.characters.map(c=>c.department||'Equipo')).size>12)throw Error('La oficina admite hasta 12 áreas por ahora');if(new Set(p.characters.map(c=>c.id)).size!==p.characters.length)throw Error('Los personajes deben tener identificadores diferentes');return put('workspace-config',{id:companyId,...p,updatedAt:new Date().toISOString()});}
+const providerIds=['openai','claude','grok','kimi','deepseek','perplexity','gemini','apify','composio','croma','vercel'];
+function companyFor(user:any){const c=get('saas-companies',user.companyId);if(!c||c.status==='suspended')throw Error('Empresa no disponible');return c;}
+export function installWorkspaces(app:Express){
+ app.get('/api/workspace/messages',(_req,res)=>res.json(tenantMessages(companyFor(res.locals.user).id)));
+ app.post('/api/workspace/messages/:id',async(req,res)=>{const c=companyFor(res.locals.user);if(res.locals.user.role==='reader')return res.status(403).json({error:'Sin permiso para conversar'});const p=z.object({text:z.string().trim().min(1).max(16000)}).strict().parse(req.body);res.json(await tenantReply(c.id,String(req.params.id),p.text));});
+ app.get('/api/workspace',(_req,res)=>{const c=companyFor(res.locals.user);res.json({company:{id:c.id,name:c.name,status:c.status},config:workspaceConfig(c.id),connections:providerIds.map(id=>({id,configured:!!get('workspace-connections',c.id+':'+id)?.configured,model:get('workspace-connections',c.id+':'+id)?.model||''})),capabilities:{office3D:true,chat:true,externalActions:false,billing:false}});});
+ app.put('/api/workspace',(req,res)=>{const c=companyFor(res.locals.user);if(res.locals.user.role!=='admin')return res.status(403).json({error:'Solo administrador de empresa'});res.json(saveWorkspace(c.id,req.body));});
+ app.put('/api/workspace/connections/:id',(req,res)=>{const c=companyFor(res.locals.user);if(res.locals.user.role!=='admin')return res.status(403).json({error:'Solo administrador de empresa'});const id=z.enum(providerIds as [string,...string[]]).parse(req.params.id);const p=z.object({key:z.string().trim().min(8).max(4096).regex(/^[^\r\n]+$/).optional(),remove:z.boolean().default(false),model:z.string().trim().max(150).regex(/^[\w./:-]*$/).optional()}).strict().parse(req.body);if(!p.key&&!p.remove&&p.model===undefined)throw Error('Introduce una clave o selecciona eliminar');if(p.key||p.remove)saveProtectedCredentials({['TENANT_'+c.id+'_'+id]:p.remove?'':p.key!});put('workspace-connections',{id:c.id+':'+id,configured:p.remove?false:p.key?true:!!get('workspace-connections',c.id+':'+id)?.configured,model:p.model??get('workspace-connections',c.id+':'+id)?.model??'',updatedAt:new Date().toISOString()});res.json({configured:!!get('workspace-connections',c.id+':'+id)?.configured,verified:false});});
+ app.get('/api/superadmin/workspaces/:id',(req,res)=>res.json(workspaceConfig(String(req.params.id))));
+ app.put('/api/superadmin/workspaces/:id',(req,res)=>res.json(saveWorkspace(String(req.params.id),req.body)));
+}
+
+

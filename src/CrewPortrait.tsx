@@ -1,0 +1,16 @@
+import {councilMember} from '../shared/council';
+import React,{useEffect,useRef,useState} from 'react';
+import * as T from 'three';
+import {loadCrewModel,makeCrewModel} from './crewModels';
+import {providers} from '../shared/organization';
+export function CrewPortrait({agent,department,paused=false,lookIndex=0,modelName}:{agent:any;department?:any;paused?:boolean;lookIndex?:number;modelName?:string}){
+ const host=useRef<HTMLDivElement>(null),[error,setError]=useState('');
+ useEffect(()=>{let disposed=false,frame=0,renderer:T.WebGLRenderer|undefined,model:ReturnType<typeof makeCrewModel>|undefined;const p=providers.find(p=>p.id===agent?.provider);const base=['administrativo','legal','diseno','soporte','contabilidad','marketing'];const appearance=base.includes(agent?.appearance)?agent.appearance:department?.model||'administrativo';const url=councilMember(agent.id)?.model||(agent.id==='hittan'?'/models/hittan.glb':agent.id==='pulpo'?'/models/donna.glb':'/models/areas/'+(modelName||p?.model||appearance)+'.glb');setError('');
+ const scene=new T.Scene();scene.background=new T.Color('#eee5f7');const camera=new T.PerspectiveCamera(29,1,.1,20);camera.position.set(0,2.38,1.8);camera.lookAt(0,2.28,0);scene.add(new T.HemisphereLight('#ffffff','#7e668e',2.5));const light=new T.DirectionalLight('#ffffff',2);light.position.set(2,4,4);scene.add(light);
+ try{renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(250,230);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.domElement.setAttribute('aria-label','Retrato tridimensional de '+agent.name);host.current!.appendChild(renderer.domElement);}catch{setError('Retrato 3D no disponible');return;}
+ void loadCrewModel(url).then(source=>{if(disposed)return;model=makeCrewModel(source,false,{index:lookIndex,leader:!agent.leaderId,color:p?.color||'#7839b0',original:!!councilMember(agent.id)||['hittan','pulpo'].includes(agent.id),council:!!councilMember(agent.id),command:true,provider:p?.kind==='llm'?p.id:undefined});scene.add(model.root);}).catch(()=>setError('No se pudo cargar el retrato'));
+ const tick=(time:number)=>{if(disposed)return;frame=requestAnimationFrame(tick);if(document.hidden)return;model?.animate(time/1000,false,paused,0);renderer!.render(scene,camera);};frame=requestAnimationFrame(tick);return()=>{disposed=true;cancelAnimationFrame(frame);scene.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose());}});renderer?.dispose();renderer?.forceContextLoss();renderer?.domElement.remove();};
+ },[agent.id,agent.appearance,department?.model,paused,lookIndex,modelName]);
+ const icons:Record<string,string>={legal:'⚖',contabilidad:'▥',marketing:'📣',ventas:'◎',soporte:'⚙',rrhh:'♧',investigacion:'⌕',licitaciones:'▤',calidad:'✓',ciberseguridad:'⛨'};
+ return <div className="crew-portrait"><div ref={host}/>{error&&<small>{error}</small>}<span className="portrait-emblem" title={agent.provider||department?.name||'Dirección'}>{providers.some(p=>p.id===agent.provider&&p.kind==='llm')?<img src={'/brands/'+agent.provider+'.svg'} alt={agent.provider}/>:<span>{councilMember(agent.id)?'🏛':icons[department?.id]||'✦'}</span>}</span></div>;
+}

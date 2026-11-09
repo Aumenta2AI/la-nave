@@ -1,0 +1,26 @@
+import type {Express} from 'express';
+import {z} from 'zod';
+import {get,put} from './store.ts';
+import {saveProtectedCredentials} from './credentialVault.ts';
+export const paymentProviders=[
+ {id:'stripe',name:'Stripe',docs:'https://dashboard.stripe.com/apikeys',fields:[['publicKey','Clave pública'],['secretKey','Clave secreta'],['webhookSecret','Secreto de firma webhook']],required:['secretKey']},
+ {id:'paypal',name:'PayPal',docs:'https://developer.paypal.com/dashboard/applications',fields:[['clientId','Client ID'],['clientSecret','Client Secret'],['webhookId','Webhook ID']],required:['clientId','clientSecret']},
+ {id:'mercadopago',name:'Mercado Pago',docs:'https://www.mercadopago.com.co/developers/panel/app',fields:[['publicKey','Public Key'],['accessToken','Access Token'],['clientId','Client ID (OAuth, opcional)'],['clientSecret','Client Secret (OAuth, opcional)'],['webhookSecret','Secreto de firma webhook']],required:['accessToken']}
+];
+const schema=z.object({mode:z.enum(['test','live']),credentials:z.record(z.string().trim().max(4096).regex(/^[^\r\n]*$/)).default({}),remove:z.array(z.string()).default([])}).strict();
+const envKey=(id:string,mode:string,field:string)=>'NAVE_PAY_'+id.toUpperCase()+'_'+mode.toUpperCase()+'_'+field.toUpperCase();
+function definition(id:string){const p=paymentProviders.find(p=>p.id===id);if(!p)throw Error('Pasarela desconocida');return p;}
+export function paymentStatus(){return paymentProviders.map(p=>{const mode=get('settings','payment-mode-'+p.id)?.mode||'test';const configuredFields=p.fields.filter(([f])=>!!process.env[envKey(p.id,mode,f)]).map(([f])=>f);return {...p,mode,configuredFields,configured:p.required.every(f=>configuredFields.includes(f)),check:get('payment-checks',p.id+'-'+mode)||null,checkoutEnabled:false};});}
+export function savePayment(id:string,input:unknown){const p=definition(id),v=schema.parse(input),allowed=p.fields.map(([f])=>f),values:Record<string,string>={};for(const field of [...Object.keys(v.credentials),...v.remove])if(!allowed.includes(field))throw Error('Campo de credencial desconocido');for(const [f,value]of Object.entries(v.credentials))if(value)values[envKey(id,v.mode,f)]=value;for(const f of v.remove)values[envKey(id,v.mode,f)]='';
+ if(id==='stripe')for(const [f,prefix]of [['secretKey','sk_'],['publicKey','pk_']]){const value=values[envKey(id,v.mode,f)];if(value&&!value.startsWith(prefix+v.mode+'_')&&!(f==='secretKey'&&value.startsWith('rk_'+v.mode+'_')))throw Error('La clave Stripe no coincide con el entorno seleccionado');}
+ if(Object.keys(values).length){saveProtectedCredentials(values);Object.assign(process.env,values);put('payment-checks',{id:id+'-'+v.mode,ok:false,state:'unverified',message:'Credenciales modificadas. Comprueba de nuevo.'});}
+ put('settings',{id:'payment-mode-'+id,mode:v.mode});return paymentStatus().find(p=>p.id===id);
+}
+export async function checkPayment(id:string,fetcher:typeof fetch=fetch){definition(id);const mode=get('settings','payment-mode-'+id)?.mode||'test',status=paymentStatus().find(p=>p.id===id)!;const key=(f:string)=>process.env[envKey(id,mode,f)]||'';const at=new Date().toISOString();let result:any={id:id+'-'+mode,at,ok:false,state:'missing',message:'Faltan credenciales obligatorias.'};
+ if(status.configured){const start=Date.now();try{let url='',options:RequestInit={};if(id==='stripe'){url='https://api.stripe.com/v1/balance';options.headers={Authorization:'Bearer '+key('secretKey')};}else if(id==='paypal'){url=(mode==='test'?'https://api-m.sandbox.paypal.com':'https://api-m.paypal.com')+'/v1/oauth2/token';options={method:'POST',headers:{Authorization:'Basic '+Buffer.from(key('clientId')+':'+key('clientSecret')).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=client_credentials'};}else{url='https://api.mercadopago.com/users/me';options.headers={Authorization:'Bearer '+key('accessToken')};}
+ const r=await fetcher(url,{...options,redirect:'error',signal:AbortSignal.timeout(15000)});if(!r.ok){await r.body?.cancel();result={...result,state:'error',message:'Proveedor respondió HTTP '+r.status+'. Revisa credenciales, entorno y permisos.'};}else{const body=await r.json();const valid=id==='paypal'?typeof body.access_token==='string'&&!!body.access_token:id==='stripe'?body.object==='balance'&&body.livemode===(mode==='live'):!!body.id;
+ result={...result,ok:valid,state:valid?'verified':'error',message:valid?'Autenticación comprobada. No se realizaron cobros. Webhooks y checkout no verificados.' : 'Respuesta inesperada o entorno incompatible.'};}result.durationMs=Date.now()-start;
+ }catch{result={...result,state:'error',message:'No fue posible contactar al proveedor de forma segura. Revisa la red y vuelve a comprobar.',durationMs:Date.now()-start};}}
+ put('payment-checks',result);return paymentStatus().find(p=>p.id===id);
+}
+export function installPaymentConnections(app:Express){app.get('/api/superadmin/payment-connections',(_req,res)=>res.json(paymentStatus()));app.put('/api/superadmin/payment-connections/:id',(req,res)=>res.json(savePayment(String(req.params.id),req.body)));app.post('/api/superadmin/payment-connections/:id/check',async(req,res)=>res.json(await checkPayment(String(req.params.id))));}

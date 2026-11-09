@@ -1,0 +1,38 @@
+[
+  {
+    "key": "design",
+    "prompt": "Use case: stylized-concept. Create one full-body character sprite for Pulpo, a futuristic Aumenta2 office app. Polished semi-realistic 3D character render, human anatomy, warm approachable expression, soft studio lighting, white fitted futuristic professional jacket and trousers with rich purple #7643a6 trim and white ankle boots. A creative DESIGN specialist: adult Latina woman around 30, short asymmetrical dark curly bob with one subtle violet streak, round translucent purple glasses, a slim stylus clipped to jacket and a small color-wheel enamel pin. Arms relaxed at sides, both hands empty. Front-facing, standing upright. Single isolated character centered on SQUARE transparent canvas, top of head at 5% and feet at 95%, body centered x50%. Enough room either side for a later raised-hand pose. No furniture, floor, shadow plane, text, labels, border, scenery or other people. Actual transparent background. Character should read clearly at small size. White-and-purple futuristic office uniform consistent with the current project's realistic sprites, not pixel art.",
+    "method": "image_gen integrado",
+    "transparent_background": true
+  },
+  {
+    "key": "designAttention",
+    "prompt": "Use case: identity-preserve. Edit the supplied DESIGN specialist character sprite. Change ONLY her right arm (on viewer's LEFT): bend elbow and lift open palm clearly beside her face, fingers together naturally, as politely requesting attention. Preserve precisely her face, purple glasses, curly bob with violet streak, white/purple uniform, stylus and color pin, legs and boots. Keep identical square canvas, body position, head location, feet baseline, character scale and lighting. No zoom or recentering. Same single full-body character, genuinely transparent background; no floor, extra people, labels or props. Everything except this raised arm must remain aligned with the input so the app can swap poses without shifting.",
+    "method": "image_gen integrado",
+    "transparent_background": true
+  },
+  {
+    "key": "support",
+    "prompt": "Use case: stylized-concept. A single full-body character sprite for the futuristic Aumenta2 Pulpo office app. Adult male TECHNICAL SUPPORT AND CUSTOMER SERVICE specialist around 35, warm medium-brown skin, short tidy dark curly hair, neat short beard, friendly reassuring smile. Small purple over-ear headset with visible thin boom microphone beside mouth. White futuristic professional fitted zip jacket with purple #7643a6 shoulders and cuff trim, small simple circuit emblem on chest, white trousers and white ankle boots. Both arms relaxed at sides, hands empty. Polished semi-realistic 3D human character render with subtle stylization and natural proportions, soft studio light. Front-facing upright, centered on SQUARE canvas with head at 5%, feet at 95%, x center50%; ample transparent space at sides for raised hand variant. No furniture, floor, cast shadow plane, scenery, text, letters, borders, extra people. Genuinely transparent background. Match a white-and-purple space-office team, not pixel art.",
+    "method": "image_gen integrado",
+    "transparent_background": true
+  },
+  {
+    "key": "supportAttention",
+    "prompt": "Use case: identity-preserve. Edit this single full-body character sprite. Change ONLY the character's right arm (on viewer's LEFT) to bend at elbow and raise an open hand beside the face, politely requesting attention. Natural five-finger hand. Preserve face, hair, glasses or headset, expression, uniform, chest emblem, trousers, boots, body stance, character scale, head location, feet baseline and lighting EXACTLY. Identical square canvas, no zoom or recentering. Do not change any other body part. Keep genuine transparency, no backdrop, floor, labels, extra person or furniture. This is the attention pose of the same sprite, for seamless swapping.",
+    "method": "image_gen integrado",
+    "transparent_background": true
+  },
+  {
+    "key": "accounting",
+    "prompt": "Use case: stylized-concept. A single full-body character sprite for futuristic Aumenta2 Pulpo office app. Adult female ACCOUNTING specialist around 45, warm olive skin, dark chestnut hair in a neat low bun, slim purple rectangular glasses, thoughtful friendly confident expression. White structured futuristic professional jacket with purple #7643a6 collar, discreet violet blouse, small silver calculator-shaped pin on lapel (simple grid icon, no text), white tailored trousers and white ankle boots. Both arms relaxed at sides, both hands empty. Polished semi-realistic 3D human character render, subtly stylized face, natural anatomy, soft studio lighting. Front-facing standing upright, centered on SQUARE transparent canvas, head at5%, feet95%, center x50%, room to either side for later raised-hand pose. No floor, furniture, backdrop, shadow plane, text, labels or extra people. Actual transparent background. White-and-purple spatial office aesthetic, not pixel art.",
+    "method": "image_gen integrado",
+    "transparent_background": true
+  },
+  {
+    "key": "accountingAttention",
+    "prompt": "Use case: identity-preserve. Edit this single full-body character sprite. Change ONLY the character's right arm (on viewer's LEFT) to bend at elbow and raise an open hand beside the face, politely requesting attention. Natural five-finger hand. Preserve face, hair, glasses or headset, expression, uniform, chest emblem, trousers, boots, body stance, character scale, head location, feet baseline and lighting EXACTLY. Identical square canvas, no zoom or recentering. Do not change any other body part. Keep genuine transparency, no backdrop, floor, labels, extra person or furniture. This is the attention pose of the same sprite, for seamless swapping.",
+    "method": "image_gen integrado",
+    "transparent_background": true
+  }
+]

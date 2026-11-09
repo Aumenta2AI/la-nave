@@ -1,0 +1,10 @@
+import React from 'react';
+export function ConnectorProposals() {
+  const proposals = [
+    ['ClickUp', 'Prioridad 1 · La Nave y todo el equipo', 'Consultar tareas, crear encargos y actualizar estados. Propuesta: cada tarea lleva responsable, fecha y enlace al entregable.', 'Conector disponible en Composio. Falta implementar el puente en La Nave y autorizar el workspace.', 'https://docs.composio.dev/toolkits/clickup'],
+    ['Higgsfield', 'Prioridad 2 · Diseño', 'Generar imágenes y clips a partir de un brief aprobado; guardar el resultado en Drive y asociarlo a la tarea de ClickUp.', 'API oficial disponible. Requiere integración propia, clave y acceso a los modelos. Tener el plugin en Codex no conecta automáticamente a La Nave.', 'https://open.higgsfield.ai/quick-start'],
+    ['Canva', 'Diseño y Marketing', 'Preparar piezas de marca con plantillas y exportarlas. Para rellenar contenido se debe evaluar Autofill y los requisitos de la cuenta.', 'Disponible en Composio; pendiente de implementación y autorización.', 'https://docs.composio.dev/kb/guide/toolkits-canva'],
+    ['CapCut', 'Edición y acabado de video', 'Por ahora, entregar clips, guion y recursos organizados para edición manual. La cuenta de CapCut se utiliza en su plataforma oficial.', 'En el catálogo público de Composio revisado no se confirmó CapCut. Su inicio de sesión no conecta automáticamente un editor a La Nave; pendiente una integración oficial verificable.', 'https://www.capcut.com/'],
+  ];
+  return <article className="panel schedule-panel"><div className="eyebrow">PROPUESTAS · TODAVÍA SIN CONECTAR</div><h2>El siguiente paso para tu equipo</h2><p>Flujo propuesto: Marketing prepara el brief → La Nave organiza la tarea en ClickUp → Diseño produce las piezas → Drive conserva los entregables → tú apruebas su publicación.</p><div className="connector-proposals">{proposals.map(([name, owner, use, state, url]) => <section key={name}><h3>{name}</h3><span className="pill">{owner}</span><p>{use}</p><p className="muted">{state}</p><a href={url} target="_blank" rel="noreferrer">Consultar documentación ↗</a></section>)}</div></article>;
+}

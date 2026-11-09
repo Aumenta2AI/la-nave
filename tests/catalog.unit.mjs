@@ -1,0 +1,26 @@
+import {test,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync} from 'node:fs';
+import path from 'node:path';
+mkdirSync('.test-data',{recursive:true});
+process.env.DATA_DIR=mkdtempSync(path.resolve('.test-data/catalog-'));
+const {init,get,put,all,db}=await import('../server/store.ts');
+const {assignCatalog}=await import('../server/catalogAssignment.ts');
+init();after(()=>db.close());
+test('Catálogo conserva historial, disponibilidad y personalizaciones; migra una sola vez',()=>{
+ const id='legal-operario-1',a=get('agents',id);
+ put('agents',{...a,sessionId:'retained',enabled:true});
+ put('messages',{id:'history',agentId:id,text:'Conservar'});
+ const custom=get('agents','ventas-operario-1');put('agents',{...custom,name:'Mi especialista'});
+ assignCatalog();
+ assert.equal(get('agents',id).sessionId,'retained');
+ assert.equal(get('agents',id).enabled,true);
+ assert.ok(get('agents',id).role);
+ assert.ok(!get('agents',id).name.includes('Operario'));
+ assert.equal(get('messages','history').text,'Conservar');
+ assert.equal(get('agents',custom.id).name,'Mi especialista');
+ assert.equal(all('agents').filter(a=>a.leaderId==='fabrica').length,6);
+ assert.equal(all('agents').filter(a=>a.catalogId).length,71);
+ const before=JSON.stringify(all('agents'));assignCatalog();assert.equal(JSON.stringify(all('agents')),before);
+ assert.ok(get('organization-snapshots','catalog-advisors-v1'));
+});
