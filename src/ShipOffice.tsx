@@ -23,7 +23,7 @@ export function ShipOffice({ data, onChat, onCreate }: { data: any; onChat: (id:
   async function toggleFullscreen(){if(expanded){setExpanded(false);return;}if(document.fullscreenElement){await document.exitFullscreen();return;}try{await viewport.current!.requestFullscreen();}catch{setExpanded(true);}}
 
   const [connections,setConnections]=useState<any[]>([]),[availabilityError,setAvailabilityError]=useState('');
-  useEffect(()=>{const refresh=()=>fetch('/api/providers').then(r=>r.json()).then(setConnections).catch(()=>{});void refresh();const timer=setInterval(refresh,10000);return()=>clearInterval(timer);},[]);
+  useEffect(()=>{if(data.demo)return;const refresh=()=>fetch('/api/providers').then(r=>r.json()).then(setConnections).catch(()=>{});void refresh();const timer=setInterval(refresh,10000);return()=>clearInterval(timer);},[]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let instance: ReturnType<typeof createShip> | null = null;
@@ -64,7 +64,7 @@ export function ShipOffice({ data, onChat, onCreate }: { data: any; onChat: (id:
         {selected === 'hittan' ? <><p>Dirección de Aumenta2 AI. Donna coordina a los líderes y te presenta los avances y decisiones pendientes.</p><p className="muted">Este personaje representa a Hittan; no ejecuta tareas autónomas.</p><button onClick={() => focus('pulpo')}>Ver a Donna ↗</button></> : agent && <>
           <p className={'crew-status ' + agent.state}><i/>{agent.enabled===false?'Pausado':connection&&!connection.configured?'Conexión pendiente':agent.pending ? 'Necesita tu respuesta' : states[agent.state] || agent.state}</p>
           {connection&&<details className="character-connection"><summary>Conectar / gestionar {connection.name}</summary><ProviderConnections only={connection.id}/></details>}{connection&&<p className="muted">{connection.check?.ok?'API/MCP verificado':connection.configured?'Credencial guardada; pendiente de verificar':'Conecta tu cuenta desde este puesto'}</p>}
-          <button className="wide" onClick={async()=>{setAvailabilityError('');try{const r=await fetch('/api/agents/'+agent.id+'/availability',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:agent.enabled===false})});if(!r.ok)throw Error((await r.json()).error);}catch(e){setAvailabilityError((e as Error).message);}}}>{agent.enabled===false?'Activar agente':'Pausar nuevos encargos'}</button>
+          <button className="wide" disabled={!!data.demo} title={data.demo?'No hay ejecuciones reales en la demo':undefined} onClick={async()=>{setAvailabilityError('');try{const r=await fetch('/api/agents/'+agent.id+'/availability',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:agent.enabled===false})});if(!r.ok)throw Error((await r.json()).error);}catch(e){setAvailabilityError((e as Error).message);}}}>{agent.enabled===false?'Activar agente':'Pausar nuevos encargos'}</button>
           {availabilityError&&<p role="alert">{availabilityError}</p>}
           {councilMember(selected)&&<p className="muted">Avatar conceptual sin afiliación. <a href={councilMember(selected)!.source} target="_blank" rel="noreferrer">Referencia pública ↗</a></p>}<p className="crew-objective">{agent.objective}</p>
           <h3>Trabajo asignado <span>{tasks.length}</span></h3>
