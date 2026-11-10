@@ -1,3 +1,4 @@
+import {hosted, publicOrigin} from './runtime.ts';
 import {installWorkspaces} from './workspaces.ts';
 import {installGoogleAdmin} from './googleLogin.ts';
 import {installSuperadmin} from './superadmin.ts';
@@ -29,12 +30,13 @@ ensureCouncil();
 assignCatalog();
 const app = express();
 app.disable('x-powered-by');
+app.get('/healthz', (_req,res)=>res.json({ok:true}));
 app.use(securityHeaders);
 const port = Number(process.env.PORT || 3210);
-app.use((req, res, next) => { const host = req.hostname; if (!['127.0.0.1', 'localhost', '::1'].includes(host)) {
+app.use((req, res, next) => { const host = req.hostname; if (!(hosted ? [new URL(publicOrigin()).hostname] : ['127.0.0.1', 'localhost', '::1']).includes(host)) {
     res.status(403).json({ error: 'Solo localhost' });
     return;
-} const origin = req.headers.origin; if (origin && !['http://localhost:' + port, 'http://127.0.0.1:' + port].includes(origin)) {
+} const origin = req.headers.origin; if (origin && !(hosted ? [publicOrigin()] : ['http://localhost:' + port, 'http://127.0.0.1:' + port]).includes(origin)) {
     res.status(403).json({ error: 'Origen no autorizado' });
     return;
 } if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.is('application/json')) {
@@ -135,7 +137,7 @@ else {
     const vite = await createServer({ server: { middlewareMode: true, watch: { ignored: ["**/public/models/**", "**/docs/evidence/**", "**/tmp/**", "**/data/**", "**/.test-data/**", "**/test-results/**", "**/playwright-report/**"] } }, appType: 'spa' });
     app.use(vite.middlewares);
 }
-const httpServer=app.listen(port, '127.0.0.1', () => {console.log(`La Nave: http://localhost:${port}${simulated ? ' [SIMULADO]' : ''}`);scheduleBackups();startOffice();});
+const httpServer=app.listen(port, hosted ? '0.0.0.0' : '127.0.0.1', () => {console.log(`La Nave: http://localhost:${port}${simulated ? ' [SIMULADO]' : ''}`);scheduleBackups();startOffice();});
 
 
 

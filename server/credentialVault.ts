@@ -2,8 +2,15 @@ import {spawnSync} from 'node:child_process';
 import {existsSync,readFileSync,writeFileSync,renameSync} from 'node:fs';
 import path from 'node:path';
 import {dataDir} from './store.ts';
-const file=path.join(dataDir,'credentials.dpapi');
+import {hosted} from './runtime.ts';
+import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
+const file=path.join(dataDir,hosted?'credentials.aes':'credentials.dpapi');
 function transform(value:string,decode=false){
+ if(hosted){
+  const key=Buffer.from(process.env.NAVE_VAULT_KEY!,'hex');
+  if(decode){const payload=JSON.parse(value);if(payload.v!==1)throw Error('Formato de credenciales no compatible');const decipher=createDecipheriv('aes-256-gcm',key,Buffer.from(payload.iv,'base64'));decipher.setAuthTag(Buffer.from(payload.tag,'base64'));return Buffer.concat([decipher.update(Buffer.from(payload.data,'base64')),decipher.final()]).toString('utf8');}
+  const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv);const data=Buffer.concat([cipher.update(value,'utf8'),cipher.final()]);return JSON.stringify({v:1,iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')});
+ }
  if(process.platform!=='win32')throw Error('El almacén de credenciales requiere Windows DPAPI.');
  const command="Add-Type -AssemblyName System.Security; $v=[Console]::In.ReadToEnd(); "+(decode?"$b=[Convert]::FromBase64String($v); $r=[Security.Cryptography.ProtectedData]::Unprotect($b,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Text.Encoding]::UTF8.GetString($r))":"$b=[Text.Encoding]::UTF8.GetBytes($v); $r=[Security.Cryptography.ProtectedData]::Protect($b,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Convert]::ToBase64String($r))");
  const result=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',command],{input:value,encoding:'utf8',windowsHide:true,timeout:15000});
